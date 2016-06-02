@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="robocode-api">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../../ISOTOPE Studio/Studio/Software/robocode/libs/robocode.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="file://$PROJECT_DIR$/../../ISOTOPE Studio/Studio/Software/robocode/javadoc" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>
