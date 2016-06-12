@@ -1,134 +1,119 @@
 package apcs2;
 
 import robocode.AdvancedRobot;
+import robocode.HitRobotEvent;
 import robocode.HitWallEvent;
 import robocode.ScannedRobotEvent;
 
 import java.awt.*;
+
+import static robocode.util.Utils.normalRelativeAngleDegrees;
 
 /**
  * Created by Mars on 6/1/2016.
  * Copyright ISOTOPE Studio
  */
 public class tanjx extends AdvancedRobot {
-    double X;
-    double Y;
-    private final static double border = 20;
-    private boolean isFinished = false;
+    /**
+     * Copyright (c) 2001-2016 Mathew A. Nelson and Robocode contributors
+     * All rights reserved. This program and the accompanying materials
+     * are made available under the terms of the Eclipse Public License v1.0
+     * which accompanies this distribution, and is available at
+     * http://robocode.sourceforge.net/license/epl-v10.html
+     */
+    private int count = 0; // Keeps track of how long we've
+    // been searching for our target
+    private double gunTurnAmt; // How much to turn our gun when searching
+    private String trackName; // Name of the robot we're currently tracking
 
-    @Override
+    /**
+     * run:  Tracker's main run function
+     */
     public void run() {
-        X = getBattleFieldWidth();
-        Y = getBattleFieldHeight();
-        setAdjustRadarForRobotTurn(true);
-        adjust();
+        // Set colors
+        setBodyColor(new Color(128, 128, 50));
+        setGunColor(new Color(50, 50, 20));
+        setRadarColor(new Color(200, 200, 70));
+        setScanColor(Color.white);
+        setBulletColor(Color.blue);
+
+        // Prepare gun
+        trackName = null; // Initialize to not tracking anyone
+        setAdjustRadarForRobotTurn(true); // Keep the gun still when we turn
+        gunTurnAmt = 10; // Initialize gunTurn to 10
+
+        // Loop forever
         while (true) {
-            if (getBackDistance() > getFowardDistance())
-                go(getFowardDistance() - border);
-            else
-                go(-(getBackDistance() - border));
-            isFinished = true;
-            turnRight(90);
+            // turn the Gun (looks for enemy)
             turnRadarRight(360);
+            // Keep track of how long we've been looking
         }
     }
+
+    /**
+     * onScannedRobot:  Here's the good stuff
+     */
+    public void onScannedRobot(ScannedRobotEvent e) {
+
+        // If we have a target, and this isn't it, return immediately
+        // so we can get more ScannedRobotEvents.
+        if (trackName != null && !e.getName().equals(trackName)) {
+            return;
+        }
+        // If we don't have a target, well, now we do!
+        if (trackName == null) {
+            trackName = e.getName();
+            out.println("Tracking " + trackName);
+        }
+        // This is our target.  Reset count (see the run method)
+        count = 0;
+        // If our target is too far away, turn and move toward it.
+        if (e.getDistance() > 150) {
+            gunTurnAmt = normalRelativeAngleDegrees(e.getBearing() + (getHeading() - getRadarHeading()));
+
+            turnGunRight(gunTurnAmt); // Try changing these to setTurnGunRight,
+            turnRight(e.getBearing()); // and see how much Tracker improves...
+            // (you'll have to make Tracker an AdvancedRobot)
+            go(e.getDistance() - 140);
+            return;
+        }
+
+        // Our target is close.
+        gunTurnAmt = normalRelativeAngleDegrees(e.getBearing() + (getHeading() - getRadarHeading()));
+        turnGunRight(gunTurnAmt);
+
+        // Our target is too close!  Back up.
+        if (e.getDistance() < 100) {
+            if (e.getBearing() > -90 && e.getBearing() <= 90) {
+                go(-40);
+            } else {
+                go(40);
+            }
+        }
+        scan();
+    }
+
+    /**
+     * onHitRobot:  Set him as our new target
+     */
+    public void onHitRobot(HitRobotEvent e) {
+        // Only print if he's not already our target.
+        if (trackName != null && !trackName.equals(e.getName())) {
+            out.println("Tracking " + e.getName() + " due to collision");
+        }
+        // Set the target
+        trackName = e.getName();
+        // Back up a bit.
+        // Note:  We won't get scan events while we're doing this!
+        // An AdvancedRobot might use setBack(); execute();
+        gunTurnAmt = normalRelativeAngleDegrees(e.getBearing() + (getHeading() - getRadarHeading()));
+        turnGunRight(gunTurnAmt);
+        go(-50);
+    }
+
 
     public void go(double d) {
         ahead(d);
         setBodyColor(new Color((int) (Math.random() * 255), (int) (Math.random() * 255), (int) (Math.random() * 255)));
     }
-
-    private double getFowardDistance() {
-        switch ((int) getHeading()) {
-            case (0): {
-                return Y - getY();
-            }
-            case (90): {
-                return X - getX();
-            }
-            case (180): {
-                return getY();
-            }
-            case (270): {
-                return getX();
-            }
-        }
-        return -1;
-    }
-
-    private double getBackDistance() {
-        switch ((int) getHeading()) {
-            case (180): {
-                return Y - getY();
-            }
-            case (270): {
-                return X - getX();
-            }
-            case (0): {
-                return getY();
-            }
-            case (90): {
-                return getX();
-            }
-        }
-        return -1;
-    }
-
-    public void adjust() {
-        if (getHeading() % 90 != 0) {
-            turnRight(90 - getHeading() % 90);
-        }
-    }
-
-    private byte scanDirection = 1;
-
-    public void onScannedRobot(ScannedRobotEvent e) {
-        scanDirection *= -1;
-        // 在1和-1变换，代表着两个方向
-        setTurnRadarRight(360 * scanDirection);
-        adjust();
-        if (isFinished)
-            if (e.getDistance() < 150) {
-                stop();
-                boolean foward = getFowardDistance() > getBackDistance();
-                double angle = e.getBearing();
-                double a = getFowardDistance();
-                double b = getBackDistance();
-                if (angle < -90) {
-                    if (getBackDistance() < 10) {
-                        turnRight(90);
-                        go(getFowardDistance() - 10);
-                        return;
-                    }
-                    go(getFowardDistance() - border);
-                } else if (angle < 0) {
-                    if (getFowardDistance() < 10) {
-                        turnLeft(90);
-                        go(getBackDistance() - 10);
-                        return;
-                    }
-                    go(-(getBackDistance() - border));
-                } else if (angle < 90) {
-                    if (getBackDistance() < 10) {
-                        turnRight(90);
-                        go(getFowardDistance() - 10);
-                        return;
-                    }
-                    go(getFowardDistance() - border);
-                } else {
-                    if (getFowardDistance() < 10) {
-                        turnLeft(90);
-                        go(getBackDistance() - 10);
-                        return;
-                    }
-                    go(-(getBackDistance() - border));
-                }
-            }
-    }
-
-    @Override
-    public void onHitWall(HitWallEvent event) {
-        stop();
-    }
-
 }
